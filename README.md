@@ -20,14 +20,27 @@ and unsupervised clustering.
 
 ## Results
 
+Evaluated on the 100 FD001 test engines (last available cycle per engine), with true RUL capped at 125 cycles.
+
 | Model | RMSE | MAE |
 |---|---|---|
 | Linear Regression (baseline) | 20.92 cycles | 16.39 cycles |
 | **Random Forest (best)** | **17.97 cycles** | **12.74 cycles** |
-| Published benchmark | ~30–35 |  |
 
-- **14.1% RMSE improvement** over Linear Regression
-- **Beat published benchmark by ~40%** through feature engineering alone
+- **14.1% RMSE improvement** over Linear Regression, driven mainly by rolling-mean features rather than model choice
+
+### In context
+
+Reported FD001 results under a similar piecewise-linear (capped) RUL target, for reference:
+
+| Method | FD001 RMSE | Source |
+|---|---|---|
+| CNN | 18.45 | Babu et al., 2016 |
+| **This work: Random Forest + rolling features** | **17.97** | |
+| Deep LSTM | 16.14 | Zheng et al., 2017 |
+| Deep CNN (time-window input) | 12.61 | Li et al., 2018 |
+
+This Random Forest is a **competitive classical baseline**, in line with published tree-based and early deep-learning results, but it does not reach state-of-the-art sequence models. Published numbers use slightly different RUL caps (125–130) and preprocessing, so the comparison is indicative, not exact.
 
 ---
 
@@ -84,11 +97,13 @@ and unsupervised clustering.
 **Biggest Finding:**
 > Raw sensor_4 importance = 0.01 (ranked 19th).  
 > sensor_4_roll5 importance = 0.63 (ranked 1st).  
-> Same sensor  one rolling average transformation  63x improvement.
+> Same sensor, one rolling-average transformation: the smoothed version carries 63× the importance of the raw signal.
 
-**Feature Engineering beats Algorithm Choice:**
-Both models beat the published benchmark of RMSE 30-35 purely 
-through better features  not better algorithms.
+**Feature Engineering matters more than Algorithm Choice here:**
+Smoothing noisy sensor channels did more for accuracy than switching
+from a linear to a non-linear model. The natural next step is a
+sequence model (1D-CNN / LSTM) on time windows, which is where the
+published state of the art on FD001 sits.
 
 **Safety Critical Finding:**
 Linear Regression over-predicts RUL near failure  it tells 
@@ -119,14 +134,28 @@ pathways can lead to the same total engine lifespan.
 
 ---
 
-## Recommendations
+## Limitations and Next Steps
 
-1. Deploy Random Forest  not Linear Regression  for any safety-critical RUL system
-2. Implement cluster-aware maintenance alerts  Cluster 0 engines need 20 earlier cycles
-3. Monitor 8 key sensors: sensor_4, 7, 11, 12, 15, 20, 21, 3
-4. Apply 5-cycle EWMA smoothing to live sensor data before prediction
-5. Set maintenance trigger at 30 cycles remaining (accounts for ~13 cycle MAE)
-6. Validate on FD002–FD004 before real fleet deployment
+**Limitations**
+- Single sub-dataset (FD001: one operating condition, one fault mode); results may not transfer to FD002–FD004.
+- Each test engine is represented by its last cycle only; no temporal model of the degradation trajectory.
+- Single train/test run; no cross-validation over engines or uncertainty on the reported RMSE.
+- C-MAPSS is simulated data, so conclusions are methodological rather than operational.
+
+**Next steps**
+1. Validate on FD002–FD004 (multiple operating conditions and fault modes), with operating-condition normalisation
+2. Sequence models (1D-CNN / LSTM) on sliding windows, for a like-for-like comparison with the literature
+3. Report the asymmetric PHM08 score alongside RMSE, since late predictions are costlier than early ones
+4. Add predictive uncertainty (e.g. quantile regression forests) so a maintenance threshold can be set with a known risk
+
+---
+
+## References
+
+- Saxena, A., Goebel, K., Simon, D., Eklund, N. (2008). *Damage propagation modeling for aircraft engine run-to-failure simulation.* PHM 2008.
+- Babu, G. S., Zhao, P., Li, X.-L. (2016). *Deep convolutional neural network based regression approach for estimation of remaining useful life.* DASFAA 2016.
+- Zheng, S., Ristovski, K., Farahat, A., Gupta, C. (2017). *Long short-term memory network for remaining useful life estimation.* IEEE ICPHM 2017.
+- Li, X., Ding, Q., Sun, J.-Q. (2018). *Remaining useful life estimation in prognostics using deep convolution neural networks.* Reliability Engineering & System Safety, 172, 1–11.
 
 ---
 
